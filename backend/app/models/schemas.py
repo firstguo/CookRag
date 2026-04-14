@@ -11,6 +11,18 @@ class SearchRequest(BaseModel):
         default=None,
         description="Ranking weights: {alpha: 0.8, beta: 0.2}",
     )
+    # Minimum similarity threshold (0.0-1.0)
+    min_similarity: Optional[float] = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description="Minimum cosine similarity threshold for results",
+    )
+    # Enable LLM-based field extraction
+    use_llm_extraction: bool = Field(
+        default=True,
+        description="Use LLM to extract fields and filter results",
+    )
 
 
 class SearchResult(BaseModel):

@@ -12,10 +12,14 @@ from pymilvus import (
 )
 
 from app.config import Settings
+from app import setup_logger
+
+logger = setup_logger(__name__)
 
 
 class MilvusClient:
     def __init__(self, settings: Settings):
+        logger.info(f"Initializing Milvus client at {settings.MILVUS_HOST}:{settings.MILVUS_PORT}")
         self._settings = settings
         self._collection_name = settings.MILVUS_COLLECTION_NAME
         
@@ -28,6 +32,7 @@ class MilvusClient:
         
         # Initialize collection
         self._collection = self._get_or_create_collection()
+        logger.info("Milvus client initialized successfully")
     
     def _get_or_create_collection(self) -> Collection:
         """Get existing collection or create new one."""
@@ -125,6 +130,7 @@ class MilvusClient:
         query_embedding: List[float],
         top_k: int = 8,
         expr: Optional[str] = None,
+        min_similarity: float = 0.5,
     ) -> List[Dict[str, Any]]:
         """
         Search recipes by vector similarity.
@@ -133,10 +139,13 @@ class MilvusClient:
             query_embedding: The query embedding vector
             top_k: Number of results to return
             expr: Optional filter expression (e.g., "array_contains(ingredients, '鸡蛋')")
+            min_similarity: Minimum cosine similarity threshold (0.0-1.0)
         
         Returns:
-            List of search results with metadata
+            List of search results with metadata (filtered by min_similarity)
         """
+        logger.debug(f"Searching Milvus with top_k={top_k}, min_similarity={min_similarity}, expr={expr}")
+        
         search_params = {
             "metric_type": "COSINE",
             "params": {"ef": 64},
@@ -158,20 +167,26 @@ class MilvusClient:
             ],
         )
         
-        # Parse results
+        # Parse results and filter by similarity
         recipes = []
         for hits in results:
             for hit in hits:
-                recipes.append({
-                    "recipe_id": hit.entity.get("recipe_id"),
-                    "title_zh": hit.entity.get("title_zh"),
-                    "content_zh": hit.entity.get("content_zh"),
-                    "ingredients": hit.entity.get("ingredients", []),
-                    "tags": hit.entity.get("tags", []),
-                    "cook_time_minutes": hit.entity.get("cook_time_minutes"),
-                    "score": float(hit.distance),
-                })
+                score = float(hit.distance)
+                # Filter by minimum similarity threshold
+                if score >= min_similarity:
+                    recipes.append({
+                        "recipe_id": hit.entity.get("recipe_id"),
+                        "title_zh": hit.entity.get("title_zh"),
+                        "content_zh": hit.entity.get("content_zh"),
+                        "ingredients": hit.entity.get("ingredients", []),
+                        "tags": hit.entity.get("tags", []),
+                        "cook_time_minutes": hit.entity.get("cook_time_minutes"),
+                        "score": score,
+                    })
+                else:
+                    logger.debug(f"Filtered out recipe {hit.entity.get('recipe_id')} with score {score} < {min_similarity}")
         
+        logger.info(f"Milvus search returned {len(recipes)} results (after similarity filter)")
         return recipes
     
     def delete_recipe(self, recipe_id: str) -> None:
