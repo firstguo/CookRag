@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 
-import { searchRecipes } from "../api";
-import type { SearchResult } from "../api";
+import { searchRecipes, containsChinese, getCurrentUser, setCurrentUser, clearAuthToken } from "../api";
+import type { SearchResult, User } from "../api";
 
 export default function SearchPage() {
   const [query, setQuery] = useState("");
@@ -12,12 +13,28 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<SearchResult[]>([]);
+  
+  const [currentUser, setCurrentUserState] = useState<User | null>(getCurrentUser());
 
   const canSearch = useMemo(() => query.trim().length > 0 && !loading, [query, loading]);
+
+  function handleLogout() {
+    clearAuthToken();
+    setCurrentUser(null);
+    setCurrentUserState(null);
+  }
 
   async function onSearch() {
     setLoading(true);
     setError(null);
+    
+    // Validate Chinese characters
+    if (!containsChinese(query.trim())) {
+      setError("查询必须包含中文字符");
+      setLoading(false);
+      return;
+    }
+    
     try {
       const resp = await searchRecipes({
         query: query.trim(),
@@ -34,7 +51,23 @@ export default function SearchPage() {
 
   return (
     <div style={{ maxWidth: 880, margin: "0 auto", padding: 16 }}>
-      <h1>CookRag</h1>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <h1 style={{ margin: 0 }}>CookRag</h1>
+        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          {currentUser ? (
+            <>
+              <span>欢迎, {currentUser.nickname}</span>
+              <button onClick={handleLogout} style={{ padding: "4px 12px" }}>退出</button>
+            </>
+          ) : (
+            <>
+              <Link to="/login" style={{ padding: "4px 12px" }}>登录</Link>
+              <Link to="/register" style={{ padding: "4px 12px" }}>注册</Link>
+            </>
+          )}
+        </div>
+      </div>
+      
       <p>输入任意语言的烹饪需求（菜谱数据仅中文），系统将返回匹配的中文菜谱。</p>
 
       <div style={{ display: "grid", gap: 12 }}>

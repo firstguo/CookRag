@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { register, setAuthToken, login } from "../api";
+import { register, setAuthToken, login, setCurrentUser } from "../api";
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -28,6 +28,7 @@ export default function RegisterPage() {
       // Auto login after registration
       const loginResult = await login(nickname, password);
       setAuthToken(loginResult.token);
+      setCurrentUser(loginResult.user);
       
       navigate("/");
     } catch (err) {

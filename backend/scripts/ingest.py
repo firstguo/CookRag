@@ -24,8 +24,8 @@ from app.services.recipe_ingest import ingest_recipes_from_dir  # noqa: E402
 
 async def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--recipes-dir", default="recipes", help="Path to recipes markdown directory")
-    parser.add_argument("--limit", type=int, default=None, help="Ingest only first N recipes")
+    parser.add_argument("--recipes-dir", default="recipes/vegetable_dish", help="Path to recipes markdown directory")
+    parser.add_argument("--limit", type=int, default=10, help="Ingest only first N recipes")
     args = parser.parse_args()
 
     repo_root = Path(__file__).resolve().parents[2]

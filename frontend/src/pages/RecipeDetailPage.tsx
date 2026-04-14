@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 
-import { getRecipeById, type RecipeDetail, likeRecipe, unlikeRecipe, getAuthToken } from "../api";
+import { getRecipeById, type RecipeDetail, likeRecipe, unlikeRecipe, getAuthToken, getCurrentUser } from "../api";
 
 export default function RecipeDetailPage() {
   const params = useParams();
@@ -11,6 +11,7 @@ export default function RecipeDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [recipe, setRecipe] = useState<RecipeDetail | null>(null);
   const [likeLoading, setLikeLoading] = useState(false);
+  const [currentUser] = useState(getCurrentUser());
 
   useEffect(() => {
     if (!recipeId) return;
@@ -36,7 +37,7 @@ export default function RecipeDetailPage() {
     
     const token = getAuthToken();
     if (!token) {
-      setError("Please login to like recipes");
+      setError("请先登录以点赞");
       return;
     }
 
@@ -66,7 +67,7 @@ export default function RecipeDetailPage() {
 
   return (
     <div style={{ maxWidth: 880, margin: "0 auto", padding: 16 }}>
-      <a href="/">Back</a>
+      <Link to="/">返回</Link>
 
       {loading ? <div>Loading...</div> : null}
       {error ? <div style={{ color: "crimson" }}>{error}</div> : null}
@@ -88,27 +89,48 @@ export default function RecipeDetailPage() {
                 borderRadius: "4px",
               }}
             >
-              {likeLoading ? "..." : recipe.liked_by_me ? "❤️ Unlike" : "🤍 Like"} ({recipe.like_count})
+              {likeLoading ? "..." : recipe.liked_by_me ? "❤️ 取消点赞" : "🤍 点赞"} ({recipe.like_count})
             </button>
           </div>
 
-          {recipe.cook_time_minutes ? <div>Cook time: {recipe.cook_time_minutes} min</div> : null}
+          {recipe.cook_time_minutes ? <div>烹饪时间: {recipe.cook_time_minutes} 分钟</div> : null}
 
-          <h2>Ingredients</h2>
+          {recipe.tags && recipe.tags.length > 0 && (
+            <div style={{ margin: "12px 0" }}>
+              <strong>标签:</strong>{" "}
+              {recipe.tags.map((tag) => (
+                <span
+                  key={tag}
+                  style={{
+                    display: "inline-block",
+                    padding: "2px 8px",
+                    margin: "2px 4px",
+                    background: "#e0e0e0",
+                    borderRadius: "4px",
+                    fontSize: "0.9em",
+                  }}
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
+
+          <h2>食材</h2>
           <ul>
             {recipe.ingredients?.map((x) => (
               <li key={x}>{x}</li>
             ))}
           </ul>
 
-          <h2>Content</h2>
+          <h2>内容</h2>
           <pre style={{ whiteSpace: "pre-wrap", background: "#f7f7f7", padding: 12, borderRadius: 8 }}>
             {recipe.content_zh}
           </pre>
 
           {recipe.steps && recipe.steps.length > 0 ? (
             <>
-              <h2>Steps</h2>
+              <h2>步骤</h2>
               <ol>
                 {recipe.steps.map((s, idx) => (
                   <li key={`${idx}-${s}`}>{s}</li>
@@ -116,6 +138,15 @@ export default function RecipeDetailPage() {
               </ol>
             </>
           ) : null}
+
+          {recipe.meta && (
+            <div style={{ marginTop: 24, padding: 12, background: "#f0f0f0", borderRadius: 8 }}>
+              <h3>元数据</h3>
+              <pre style={{ whiteSpace: "pre-wrap", fontSize: "0.9em" }}>
+                {JSON.stringify(recipe.meta, null, 2)}
+              </pre>
+            </div>
+          )}
         </div>
       ) : null}
     </div>

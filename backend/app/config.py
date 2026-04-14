@@ -33,6 +33,6 @@ class Settings:
     VECTOR_INDEX_NAME: str = os.getenv("VECTOR_INDEX_NAME", "recipes")
 
     # Auth
-    JWT_SECRET: str = os.getenv("JWT_SECRET", "change-me-to-a-strong-secret")
+    JWT_SECRET: str = os.getenv("JWT_SECRET", "cookrag123")
     JWT_EXPIRE_MINUTES: int = int(os.getenv("JWT_EXPIRE_MINUTES", "10080"))
 

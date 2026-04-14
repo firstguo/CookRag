@@ -7,10 +7,15 @@ from pymongo import MongoClient
 from pymongo.errors import DuplicateKeyError
 
 from app.config import Settings
+from app import setup_logger
+
+# Create module-level logger
+logger = setup_logger(__name__)
 
 
 class MongoDBClient:
     def __init__(self, settings: Settings):
+        logger.info(f"Initializing MongoDB client with URI: {settings.MONGODB_URI}")
         self._settings = settings
         self._client = MongoClient(settings.MONGODB_URI)
         self._db = self._client[settings.MONGODB_DB_NAME]
@@ -22,6 +27,7 @@ class MongoDBClient:
         
         # Create indexes
         self._create_indexes()
+        logger.info("MongoDB client initialized successfully")
     
     def _create_indexes(self):
         """Create necessary indexes for collections."""
@@ -59,8 +65,10 @@ class MongoDBClient:
     
     def recipe_get(self, recipe_id: str) -> Optional[Dict[str, Any]]:
         """Get a recipe by recipe_id."""
+        logger.debug(f"Fetching recipe: {recipe_id}")
         doc = self._recipes.find_one({"recipe_id": recipe_id})
         if not doc:
+            logger.debug(f"Recipe not found: {recipe_id}")
             return None
         
         # Convert ObjectId to string for JSON serialization

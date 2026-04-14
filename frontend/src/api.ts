@@ -24,6 +24,9 @@ export async function searchRecipes(request: SearchRequest) {
   });
   if (!resp.ok) {
     const error = await resp.text();
+    if (resp.status === 400) {
+      throw new Error("查询必须包含中文字符");
+    }
     throw new Error(`search failed: ${resp.status} - ${error}`);
   }
   return (await resp.json()) as { query: string; results: SearchResult[] };
@@ -39,10 +42,16 @@ export type RecipeDetail = {
   steps?: string[];
   like_count: number;
   liked_by_me: boolean;
+  meta?: Record<string, any>;
 };
 
 export async function getRecipeById(id: string) {
-  const resp = await fetch(`/api/recipes/${encodeURIComponent(id)}`);
+  const resp = await fetch(`/api/recipes/${encodeURIComponent(id)}`, {
+     headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+  });
   if (!resp.ok) {
     throw new Error(`recipe fetch failed: ${resp.status}`);
   }
@@ -68,6 +77,9 @@ export async function register(nickname: string, password: string) {
   });
   if (!resp.ok) {
     const error = await resp.text();
+    if (resp.status === 409) {
+      throw new Error("昵称已被使用");
+    }
     throw new Error(`register failed: ${resp.status} - ${error}`);
   }
   return (await resp.json()) as { user: User };
@@ -81,6 +93,9 @@ export async function login(nickname: string, password: string) {
   });
   if (!resp.ok) {
     const error = await resp.text();
+    if (resp.status === 401) {
+      throw new Error("昵称或密码错误");
+    }
     throw new Error(`login failed: ${resp.status} - ${error}`);
   }
   return (await resp.json()) as AuthResponse;
@@ -101,6 +116,32 @@ export function clearAuthToken() {
 export function getAuthHeaders(): HeadersInit {
   const token = getAuthToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+export function getCurrentUser(): User | null {
+  const userStr = localStorage.getItem("current_user");
+  if (!userStr) return null;
+  try {
+    return JSON.parse(userStr) as User;
+  } catch {
+    return null;
+  }
+}
+
+export function setCurrentUser(user: User | null) {
+  if (user) {
+    localStorage.setItem("current_user", JSON.stringify(user));
+  } else {
+    localStorage.removeItem("current_user");
+  }
+}
+
+/**
+ * Validate that a string contains Chinese characters
+ */
+export function containsChinese(text: string): boolean {
+  const chineseRegex = /[\u4e00-\u9fff]/;
+  return chineseRegex.test(text);
 }
 
 // Like functions

@@ -4,10 +4,14 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request
 
+from app import setup_logger
 from app.models.schemas import SearchRequest, SearchResponse, SearchResult
 from app.services.embedding_client import OllamaEmbeddingClient
 from app.services.milvus_client import MilvusClient
 from app.services.mongo_client import MongoDBClient
+
+# Create module-level logger using centralized setup
+logger = setup_logger(__name__)
 
 
 router = APIRouter()
@@ -32,8 +36,11 @@ def calculate_final_score(score: float, like_count: int, max_like_count: int, al
 
 @router.post("/api/search", response_model=SearchResponse)
 async def search_recipes(payload: SearchRequest, request: Request) -> SearchResponse:
+    logger.info(f"Search requested for query: {payload.query}")
+    
     # Validate Chinese query
     if not validate_chinese_query(payload.query):
+        logger.warning(f"Search query does not contain Chinese characters: {payload.query}")
         raise HTTPException(
             status_code=400,
             detail="Query must contain Chinese characters",
@@ -51,17 +58,22 @@ async def search_recipes(payload: SearchRequest, request: Request) -> SearchResp
         beta = payload.rank.get("beta", 0.2)
     
     # Generate query embedding
+    logger.debug(f"Generating embedding for query: {payload.query}")
     query_embedding = await embedding_client.embed(payload.query)
     
     # Search in Milvus with larger candidate set for ranking
     candidate_k = max(payload.topK * 5, 20)
+    logger.debug(f"Searching Milvus with top_k={candidate_k}")
     milvus_results = milvus.search_recipes(
         query_embedding=query_embedding,
         top_k=candidate_k,
     )
     
     if not milvus_results:
+        logger.info(f"No results found for query: {payload.query}")
         return SearchResponse(query=payload.query, results=[])
+    
+    logger.info(f"Found {len(milvus_results)} candidate results for query: {payload.query}")
     
     # Get recipe IDs from Milvus results
     recipe_ids = [r["recipe_id"] for r in milvus_results]
@@ -109,5 +121,6 @@ async def search_recipes(payload: SearchRequest, request: Request) -> SearchResp
     combined_results.sort(key=lambda x: x.final_score, reverse=True)
     combined_results = combined_results[:payload.topK]
     
+    logger.info(f"Returning {len(combined_results)} results for query: {payload.query}")
     return SearchResponse(query=payload.query, results=combined_results)
 
