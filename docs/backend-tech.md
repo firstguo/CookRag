@@ -145,7 +145,7 @@ Milvus 支持在向量检索时附加标量过滤条件：
 
 ```python
 # 示例：检索包含特定食材的菜谱
-expr = "array_contains(ingredients, '鸡蛋')"
+expr = "ARRAY_CONTAINS(ingredients, '鸡蛋')"
 results = collection.search(
     data=[query_embedding],
     anns_field="embedding",

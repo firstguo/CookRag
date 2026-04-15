@@ -84,3 +84,7 @@ temp/
 # recipes/**/*.jpg
 # recipes/**/*.jpeg
 # recipes/**/*.JPG
+
+
+#volumes
+volumes/

@@ -1,5 +1,7 @@
 import math
 import re
+import logging
+
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException, Request
@@ -7,12 +9,12 @@ from fastapi import APIRouter, HTTPException, Request
 from app import setup_logger
 from app.models.schemas import SearchRequest, SearchResponse, SearchResult
 from app.services.embedding_client import OllamaEmbeddingClient
-from app.services.llm_client import OllamaLLMClient
+from app.services.llm_client import LLMClient
 from app.services.milvus_client import MilvusClient
 from app.services.mongo_client import MongoDBClient
 
 # Create module-level logger using centralized setup
-logger = setup_logger(__name__)
+logger = setup_logger(__name__, logging.DEBUG)
 
 
 router = APIRouter()
@@ -55,21 +57,21 @@ def build_milvus_filter_expr(extracted_fields: Dict[str, Any]) -> Optional[str]:
         for ingredient in ingredients:
             # Escape single quotes in ingredient name
             escaped_ingredient = ingredient.replace("'", "\\'")
-            ingredient_filters.append(f"array_contains(ingredients, '{escaped_ingredient}')")
+            ingredient_filters.append(f"ARRAY_CONTAINS(ingredients, '{escaped_ingredient}')")
         
         if ingredient_filters:
             filters.append(" or ".join(ingredient_filters))
     
     # Filter by tags
-    tags = extracted_fields.get("tags", [])
-    if tags:
-        tag_filters = []
-        for tag in tags:
-            escaped_tag = tag.replace("'", "\\'")
-            tag_filters.append(f"array_contains(tags, '{escaped_tag}')")
+    # tags = extracted_fields.get("tags", [])
+    # if tags:
+    #     tag_filters = []
+    #     for tag in tags:
+    #         escaped_tag = tag.replace("'", "\\'")
+    #         tag_filters.append(f"ARRAY_CONTAINS(tags, '{escaped_tag}')")
         
-        if tag_filters:
-            filters.append(" or ".join(tag_filters))
+    #     if tag_filters:
+    #         filters.append(" or ".join(tag_filters))
     
     # Filter by cook_time_minutes
     cook_time = extracted_fields.get("cook_time_minutes")
@@ -124,26 +126,26 @@ def filter_recipes_by_extracted_fields(
         logger.info(f"Filtered by ingredients: {len(filtered)} results")
     
     # Filter by tags (must contain at least one)
-    tags = extracted_fields.get("tags", [])
-    if tags:
-        filtered = [
-            r for r in filtered
-            if any(
-                tag.lower() in [t.lower() for t in r.get("tags", [])]
-                for tag in tags
-            )
-        ]
-        logger.info(f"Filtered by tags: {len(filtered)} results")
+    # tags = extracted_fields.get("tags", [])
+    # if tags:
+    #     filtered = [
+    #         r for r in filtered
+    #         if any(
+    #             tag.lower() in [t.lower() for t in r.get("tags", [])]
+    #             for tag in tags
+    #         )
+    #     ]
+    #     logger.info(f"Filtered by tags: {len(filtered)} results")
     
     # Filter by cook time
-    cook_time = extracted_fields.get("cook_time_minutes")
-    if cook_time is not None:
-        filtered = [
-            r for r in filtered
-            if r.get("cook_time_minutes") is not None 
-            and r.get("cook_time_minutes", 0) <= cook_time
-        ]
-        logger.info(f"Filtered by cook time: {len(filtered)} results")
+    # cook_time = extracted_fields.get("cook_time_minutes")
+    # if cook_time is not None:
+    #     filtered = [
+    #         r for r in filtered
+    #         if r.get("cook_time_minutes") is not None 
+    #         and r.get("cook_time_minutes", 0) <= cook_time
+    #     ]
+    #     logger.info(f"Filtered by cook time: {len(filtered)} results")
     
     return filtered
 
@@ -161,7 +163,7 @@ async def search_recipes(payload: SearchRequest, request: Request) -> SearchResp
         )
     
     embedding_client: OllamaEmbeddingClient = request.app.state.embedding_client
-    llm_client: OllamaLLMClient = request.app.state.llm_client
+    llm_client: LLMClient = request.app.state.llm_client
     milvus: MilvusClient = request.app.state.milvus
     mongo: MongoDBClient = request.app.state.mongo
     
@@ -206,7 +208,7 @@ async def search_recipes(payload: SearchRequest, request: Request) -> SearchResp
     candidate_k = max(payload.topK * 5, 20)
     min_similarity = payload.min_similarity or 0.5
     
-    logger.debug(f"Searching Milvus with top_k={candidate_k}, min_similarity={min_similarity}")
+    logger.debug(f"Searching Milvus with top_k={candidate_k}, min_similarity={min_similarity}, filter_expr={filter_expr}")
     milvus_results = milvus.search_recipes(
         query_embedding=query_embedding,
         top_k=candidate_k,

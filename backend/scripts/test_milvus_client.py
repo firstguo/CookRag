@@ -110,7 +110,7 @@ def test_milvus_client():
         query_embedding = [0.1] * 1024
         
         # Search with ingredient filter
-        expr = "array_contains(ingredients, '鸡蛋')"
+        expr = "ARRAY_CONTAINS(ingredients, '鸡蛋')"
         results = client.search_recipes(
             query_embedding=query_embedding,
             top_k=5,
@@ -153,6 +153,238 @@ def test_milvus_client():
     print("✓ All tests passed successfully!")
     print("=" * 60)
     return True
+
+
+def test_search_recipes_comprehensive():
+    """Comprehensive tests specifically for search_recipes function."""
+    print("\n" + "=" * 60)
+    print("Comprehensive Search Tests")
+    print("=" * 60)
+    
+    settings = Settings()
+    client = MilvusClient(settings)
+    
+    # Setup test data with varied attributes
+    print("\n[Setup] Creating diverse test recipes...")
+    test_recipes = [
+        {
+            "recipe_id": "search_test_001",
+            "title_zh": "西红柿炒鸡蛋",
+            "content_zh": "经典家常菜，酸甜可口",
+            "ingredients": ["西红柿", "鸡蛋", "盐", "糖", "油"],
+            "tags": ["家常菜", "素食", "快手菜", "酸甜"],
+            "cook_time_minutes": 10,
+            "embedding": [0.1] * 1024,
+        },
+        {
+            "recipe_id": "search_test_002",
+            "title_zh": "麻婆豆腐",
+            "content_zh": "四川名菜，麻辣鲜香",
+            "ingredients": ["豆腐", "猪肉末", "豆瓣酱", "花椒", "辣椒"],
+            "tags": ["川菜", "辣", "麻", "下饭菜"],
+            "cook_time_minutes": 20,
+            "embedding": [0.2] * 1024,
+        },
+        {
+            "recipe_id": "search_test_003",
+            "title_zh": "清炒时蔬",
+            "content_zh": "健康清淡，营养丰富",
+            "ingredients": ["青菜", "蒜", "盐", "油"],
+            "tags": ["素食", "清淡", "健康", "快手菜"],
+            "cook_time_minutes": 8,
+            "embedding": [0.3] * 1024,
+        },
+        {
+            "recipe_id": "search_test_004",
+            "title_zh": "酸辣土豆丝",
+            "content_zh": "爽脆开胃，酸辣可口",
+            "ingredients": ["土豆", "干辣椒", "醋", "花椒", "盐"],
+            "tags": ["辣", "酸", "开胃菜", "素食"],
+            "cook_time_minutes": 15,
+            "embedding": [0.4] * 1024,
+        },
+        {
+            "recipe_id": "search_test_005",
+            "title_zh": "红烧肉",
+            "content_zh": "色泽红亮，肥而不腻",
+            "ingredients": ["五花肉", "冰糖", "酱油", "料酒", "姜"],
+            "tags": ["家常菜", "肉类", "下饭菜"],
+            "cook_time_minutes": 60,
+            "embedding": [0.5] * 1024,
+        },
+    ]
+    
+    try:
+        # Insert test recipes
+        for recipe in test_recipes:
+            client.upsert_recipe(recipe)
+            print(f"  ✓ Inserted: {recipe['title_zh']}")
+        
+        # Wait for Milvus to index
+        import time
+        time.sleep(1)
+        
+        stats = client.get_collection_stats()
+        print(f"\n  Total entities: {stats['num_entities']}")
+        
+        # Test 1: Basic search without filters
+        print("\n[Test 1] Basic vector search (no filters)...")
+        query_embedding = [0.12] * 1024  # Close to search_test_001
+        results = client.search_recipes(
+            query_embedding=query_embedding,
+            top_k=5,
+            min_similarity=0.0,
+        )
+        print(f"  ✓ Returned {len(results)} results")
+        for i, r in enumerate(results[:3], 1):
+            print(f"    {i}. {r['title_zh']} (score: {r['score']:.4f})")
+        
+        # Test 2: Search with ARRAY_CONTAINS filter (single ingredient)
+        print("\n[Test 2] Search with ARRAY_CONTAINS (single ingredient)...")
+        expr = "ARRAY_CONTAINS(ingredients, '鸡蛋')"
+        results = client.search_recipes(
+            query_embedding=query_embedding,
+            top_k=10,
+            expr=expr,
+            min_similarity=0.0,
+        )
+        print(f"  ✓ Filter: {expr}")
+        print(f"  ✓ Returned {len(results)} results")
+        for i, r in enumerate(results, 1):
+            print(f"    {i}. {r['title_zh']} - ingredients: {r['ingredients']}")
+        
+        # Test 3: Search with ARRAY_CONTAINS filter (single tag)
+        print("\n[Test 3] Search with ARRAY_CONTAINS (single tag)...")
+        expr = "(ARRAY_CONTAINS(tags, '辣'))"
+        results = client.search_recipes(
+            query_embedding=query_embedding,
+            top_k=10,
+            expr=expr,
+            min_similarity=0.0,
+        )
+        print(f"  ✓ Filter: {expr}")
+        print(f"  ✓ Returned {len(results)} results")
+        for i, r in enumerate(results, 1):
+            print(f"    {i}. {r['title_zh']} - tags: {r['tags']}")
+        
+        # Test 4: Search with combined filters (OR logic)
+        print("\n[Test 4] Search with combined filters (OR logic)...")
+        expr = "ARRAY_CONTAINS(tags, '辣') or ARRAY_CONTAINS(tags, '酸')"
+        results = client.search_recipes(
+            query_embedding=query_embedding,
+            top_k=10,
+            expr=expr,
+            min_similarity=0.0,
+        )
+        print(f"  ✓ Filter: {expr}")
+        print(f"  ✓ Returned {len(results)} results")
+        for i, r in enumerate(results, 1):
+            print(f"    {i}. {r['title_zh']} - tags: {r['tags']}")
+        
+        # Test 5: Search with combined filters (AND logic)
+        print("\n[Test 5] Search with combined filters (AND logic)...")
+        expr = "ARRAY_CONTAINS(tags, '素食') and ARRAY_CONTAINS(tags, '快手菜')"
+        results = client.search_recipes(
+            query_embedding=query_embedding,
+            top_k=10,
+            expr=expr,
+            min_similarity=0.0,
+        )
+        print(f"  ✓ Filter: {expr}")
+        print(f"  ✓ Returned {len(results)} results")
+        for i, r in enumerate(results, 1):
+            print(f"    {i}. {r['title_zh']} - tags: {r['tags']}")
+        
+        # Test 6: Search with numeric filter
+        print("\n[Test 6] Search with numeric filter (cook_time)...")
+        expr = "cook_time_minutes <= 15"
+        results = client.search_recipes(
+            query_embedding=query_embedding,
+            top_k=10,
+            expr=expr,
+            min_similarity=0.0,
+        )
+        print(f"  ✓ Filter: {expr}")
+        print(f"  ✓ Returned {len(results)} results")
+        for i, r in enumerate(results, 1):
+            print(f"    {i}. {r['title_zh']} - cook_time: {r['cook_time_minutes']}min")
+        
+        # Test 7: Search with complex combined filters
+        print("\n[Test 7] Search with complex combined filters...")
+        expr = "(ARRAY_CONTAINS(tags, '素食') or ARRAY_CONTAINS(ingredients, '鸡蛋')) and cook_time_minutes <= 20"
+        results = client.search_recipes(
+            query_embedding=query_embedding,
+            top_k=10,
+            expr=expr,
+            min_similarity=0.0,
+        )
+        print(f"  ✓ Filter: {expr}")
+        print(f"  ✓ Returned {len(results)} results")
+        for i, r in enumerate(results, 1):
+            print(f"    {i}. {r['title_zh']} - tags: {r['tags']}, time: {r['cook_time_minutes']}min")
+        
+        # Test 8: Search with high min_similarity threshold
+        print("\n[Test 8] Search with high similarity threshold...")
+        results = client.search_recipes(
+            query_embedding=query_embedding,
+            top_k=10,
+            min_similarity=0.95,
+        )
+        print(f"  ✓ Min similarity: 0.95")
+        print(f"  ✓ Returned {len(results)} results (should be few or none)")
+        
+        # Test 9: Search with non-existent filter value
+        print("\n[Test 9] Search with non-existent filter value...")
+        expr = "ARRAY_CONTAINS(ingredients, '龙虾')"
+        results = client.search_recipes(
+            query_embedding=query_embedding,
+            top_k=10,
+            expr=expr,
+            min_similarity=0.0,
+        )
+        print(f"  ✓ Filter: {expr}")
+        print(f"  ✓ Returned {len(results)} results (should be 0)")
+        
+        # Test 10: Search with special characters in filter
+        print("\n[Test 10] Search with special characters in filter...")
+        # Test with single quote escaping (if any recipe has it)
+        expr = "ARRAY_CONTAINS(tags, '下饭菜')"
+        results = client.search_recipes(
+            query_embedding=query_embedding,
+            top_k=10,
+            expr=expr,
+            min_similarity=0.0,
+        )
+        print(f"  ✓ Filter: {expr}")
+        print(f"  ✓ Returned {len(results)} results")
+        
+        # Cleanup
+        print("\n[Cleanup] Removing test recipes...")
+        for recipe in test_recipes:
+            client.delete_recipe(recipe["recipe_id"])
+        print("  ✓ All test recipes deleted")
+        
+        client.close()
+        print("\n" + "=" * 60)
+        print("✓ All comprehensive search tests passed!")
+        print("=" * 60)
+        return True
+        
+    except Exception as e:
+        print(f"\n✗ Test failed with error: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        # Attempt cleanup
+        try:
+            for recipe in test_recipes:
+                client.delete_recipe(recipe["recipe_id"])
+            print("\n  ✓ Cleanup completed")
+        except:
+            pass
+        
+        client.close()
+        return False
 
 
 def test_edge_cases():
@@ -214,8 +446,15 @@ if __name__ == "__main__":
     success = test_milvus_client()
     
     if success:
-        # Run edge case tests
-        test_edge_cases()
+        # Run comprehensive search tests
+        search_success = test_search_recipes_comprehensive()
+        
+        if search_success:
+            # Run edge case tests
+            test_edge_cases()
+        else:
+            print("\n✗ Comprehensive search tests failed.")
+            sys.exit(1)
     else:
-        print("\n✗ Main tests failed. Skipping edge case tests.")
+        print("\n✗ Main tests failed. Skipping further tests.")
         sys.exit(1)

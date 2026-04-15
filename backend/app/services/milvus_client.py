@@ -138,7 +138,7 @@ class MilvusClient:
         Args:
             query_embedding: The query embedding vector
             top_k: Number of results to return
-            expr: Optional filter expression (e.g., "array_contains(ingredients, '鸡蛋')")
+            expr: Optional filter expression (e.g., "ARRAY_CONTAINS(ingredients, '鸡蛋')")
             min_similarity: Minimum cosine similarity threshold (0.0-1.0)
         
         Returns:

@@ -27,8 +27,21 @@ class Settings:
     # Ollama embeddings
     OLLAMA_HOST: str = os.getenv("OLLAMA_HOST", "http://localhost:11434")
     OLLAMA_EMBEDDING_MODEL: str = os.getenv("OLLAMA_EMBEDDING_MODEL", "bge-m3")
-    OLLAMA_LLM_MODEL: str = os.getenv("OLLAMA_LLM_MODEL", "qwen2.5:7b")  # LLM for field extraction
     OLLAMA_TIMEOUT_S: float = float(os.getenv("OLLAMA_TIMEOUT_S", "120"))
+
+    # LLM Configuration (LangChain-based)
+    LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "qwen")  # Options: "qwen", "deepseek", "ollama"
+    
+    # Qwen/Tongyi Qianwen API
+    QWEN_API_KEY: str = os.getenv("QWEN_API_KEY", "sk-699ba77b0983413786edce60125dad93")
+    QWEN_MODEL: str = os.getenv("QWEN_MODEL", "qwen3-max-2026-01-23")
+    
+    # DeepSeek API
+    DEEPSEEK_API_KEY: str = os.getenv("DEEPSEEK_API_KEY", "")
+    DEEPSEEK_MODEL: str = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
+    
+    # Ollama LLM (fallback)
+    OLLAMA_LLM_MODEL: str = os.getenv("OLLAMA_LLM_MODEL", "qwen2.5:7b")
 
     # Vector index
     VECTOR_INDEX_NAME: str = os.getenv("VECTOR_INDEX_NAME", "recipes")

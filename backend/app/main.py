@@ -9,7 +9,7 @@ from app.api.auth import router as auth_router
 from app.api.likes import router as likes_router
 from app.config import Settings
 from app.services.embedding_client import OllamaEmbeddingClient
-from app.services.llm_client import OllamaLLMClient
+from app.services.llm_client import LLMClient
 from app.services.mongo_client import MongoDBClient
 from app.services.milvus_client import MilvusClient
 from app.services.auth import AuthService
@@ -44,7 +44,7 @@ def create_app() -> FastAPI:
         # Store shared clients on app.state so route handlers remain thin.
         app.state.settings = settings
         app.state.embedding_client = OllamaEmbeddingClient(settings)
-        app.state.llm_client = OllamaLLMClient(settings)
+        app.state.llm_client = LLMClient(settings)
         app.state.mongo = MongoDBClient(settings)
         app.state.milvus = MilvusClient(settings)
         app.state.auth_service = AuthService(settings)
